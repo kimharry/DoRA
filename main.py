@@ -22,6 +22,7 @@ model.to(device)
 
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
+    transforms.Normalize(mean=[0.4728, 0.4489, 0.4047], std=[0.2841, 0.2758, 0.2909]),
     transforms.ToTensor(),
 ])
 
