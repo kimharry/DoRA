@@ -12,7 +12,7 @@ class ResNet18(nn.Module):
         num_classes (int): Number of output classes. Default is 1000 (ImageNet classes).
         pretrained (bool): If True, loads weights pre-trained on ImageNet. Default is True.
     """
-    def __init__(self, num_classes=1000, pretrained=True):
+    def __init__(self, num_classes=1000):
         super(ResNet18, self).__init__()
         self.model = resnet.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
         
@@ -25,7 +25,7 @@ class ResNet18(nn.Module):
 
 
 if __name__ == "__main__":
-    model = ResNet18(num_classes=10, pretrained=True)
+    model = ResNet18(num_classes=10)
     
     x = torch.randn(1, 3, 224, 224)
     

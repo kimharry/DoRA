@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # pretrain on cifar10
-model = ResNet18(num_classes=10, pretrained=False)
+model = ResNet18(num_classes=10)
 model.to(device)
 
 transform = transforms.Compose([
@@ -33,7 +33,7 @@ for epoch in range(10):
         loss = nn.CrossEntropyLoss()(outputs, labels)
         loss.backward()
         optimizer.step()
-        print(f"Epoch {epoch}, loss: {loss.item()}")
+    print(f"Epoch {epoch}, loss: {loss.item()}")
 
 model.eval()
 test_loader = DataLoader(cifar10, batch_size=64, shuffle=False)
@@ -43,4 +43,4 @@ for images, labels in test_loader:
     labels = labels.to(device)
     outputs = model(images)
     loss = nn.CrossEntropyLoss()(outputs, labels)
-    print(f"Test loss: {loss.item()}")
+    print(f"Acc: {torch.sum(torch.argmax(outputs, dim=1) == labels).item() / len(labels)}")
