@@ -5,13 +5,20 @@ import torchvision.transforms as transforms
 from model.mod_resnet18 import ResNet18
 from torch.utils.data import DataLoader
 
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--fine_tune_epoch', '-fe', type=int, default=10)
+parser.add_argument('--train_epoch', '-te', type=int, default=10)
+args = parser.parse_args()
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 model = ResNet18(num_classes=100)
 model.to(device)
 
 transform = transforms.Compose([
-    transforms.Resize((224, 224)),   # or (84, 84) for Conv4
+    transforms.Resize((224, 224)),
     transforms.ToTensor(),
 ])
 
@@ -21,15 +28,15 @@ train_size = int(0.8 * len(dataset))
 test_size = len(dataset) - train_size
 train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
 
-train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=10)
+test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False, num_workers=10)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10)
-loss_fn = nn.CrossEntropyLoss()
+lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.fine_tune_epoch)
+criterion = nn.CrossEntropyLoss()
 
 model.train()
-for epoch in range(10):
+for epoch in range(args.fine_tune_epoch):
     correct = 0
     total = 0
     for images, labels in train_loader:
@@ -38,7 +45,7 @@ for epoch in range(10):
         
         optimizer.zero_grad()
         outputs = model(images)
-        loss = loss_fn(outputs, labels)
+        loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
         lr_scheduler.step()
