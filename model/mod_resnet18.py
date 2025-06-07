@@ -12,11 +12,11 @@ class ResNet18(nn.Module):
         num_classes (int): Number of output classes. Default is 1000 (ImageNet classes).
         pretrained (bool): If True, loads weights pre-trained on ImageNet. Default is True.
     """
-    def __init__(self, num_classes=1000):
+    def __init__(self, num_classes=100):
         super(ResNet18, self).__init__()
         self.model = resnet.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
         
-        if num_classes != 1000:
+        if num_classes != 100:
             in_features = self.model.fc.in_features
             self.model.fc = nn.Linear(in_features, num_classes)
     

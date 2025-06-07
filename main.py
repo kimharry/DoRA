@@ -7,40 +7,53 @@ from torch.utils.data import DataLoader
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# pretrain on cifar10
-model = ResNet18(num_classes=10)
+model = ResNet18(num_classes=100)
 model.to(device)
 
 transform = transforms.Compose([
-    transforms.Resize(256),
-    transforms.CenterCrop(224),
+    transforms.Resize((224, 224)),   # or (84, 84) for Conv4
     transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
 
-cifar10 = datasets.CIFAR10(root="data", train=True, download=True, transform=transform)
+dataset = datasets.ImageFolder(root="data/miniimagenet", transform=transform)
 
-train_loader = DataLoader(cifar10, batch_size=64, shuffle=True)
+train_size = int(0.8 * len(dataset))
+test_size = len(dataset) - train_size
+train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
 
+train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10)
+loss_fn = nn.CrossEntropyLoss()
+
+model.train()
 for epoch in range(10):
     for images, labels in train_loader:
-        model.train()
         images = images.to(device)
         labels = labels.to(device)
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+        
         optimizer.zero_grad()
         outputs = model(images)
-        loss = nn.CrossEntropyLoss()(outputs, labels)
+        loss = loss_fn(outputs, labels)
         loss.backward()
         optimizer.step()
-    print(f"Epoch {epoch}, loss: {loss.item()}")
+        lr_scheduler.step()
+
+    print(f"Epoch {epoch+1}, Loss: {loss.item()}")
 
 model.eval()
-test_loader = DataLoader(cifar10, batch_size=64, shuffle=False)
+with torch.no_grad():
+    correct = 0
+    total = 0
+    for images, labels in test_loader:
+        images = images.to(device)
+        labels = labels.to(device)
+        
+        outputs = model(images)
+        _, predicted = torch.max(outputs.data, 1)
+        total += labels.size(0)
+        correct += (predicted == labels).sum().item()
 
-for images, labels in test_loader:
-    images = images.to(device)
-    labels = labels.to(device)
-    outputs = model(images)
-    loss = nn.CrossEntropyLoss()(outputs, labels)
-    print(f"Acc: {torch.sum(torch.argmax(outputs, dim=1) == labels).item() / len(labels)}")
+    print(f"Test Accuracy: {100 * correct / total:.2f}%")
