@@ -45,6 +45,7 @@ def train_model(model, train_dataset, test_dataset, args, fine_tune=False):
             param.requires_grad = False
 
         optimizer = torch.optim.Adam(model.parameters(), lr=args.main_lr)
+        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.main_epoch)
         criterion = nn.CrossEntropyLoss()
 
         num_epochs = args.main_epoch
@@ -115,14 +116,14 @@ def train_model(model, train_dataset, test_dataset, args, fine_tune=False):
         
         print(f'Epoch {epoch+1}/{num_epochs} - Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%, Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%')
         
-        # Step the learning rate scheduler
-        lr_scheduler.step()
-        
         # Add model weights and gradients to TensorBoard
         for name, param in model.named_parameters():
             writer.add_histogram(f'weights/{name}', param, epoch)
             if param.grad is not None:
                 writer.add_histogram(f'grads/{name}', param.grad, epoch)
+
+        if not fine_tune:
+            lr_scheduler.step()
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
