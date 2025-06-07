@@ -13,6 +13,7 @@ parser.add_argument('--train_lr', '-tlr', type=float, default=0.001)
 parser.add_argument('--fine_tune_epoch', '-fe', type=int, default=10)
 parser.add_argument('--fine_tune_batch_size', '-fbs', type=int, default=64)
 parser.add_argument('--fine_tune_lr', '-flr', type=float, default=0.001)
+parser.add_argument('--num_workers', '-nw', type=int, default=24)
 args = parser.parse_args()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -33,6 +34,6 @@ test_size = len(dataset) - train_size
 train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
 
 
-train_model(model, train_dataset, test_dataset, args)
+train_model(model, train_dataset, test_dataset, args, num_workers=args.num_workers)
 
-train_model(model, train_dataset, test_dataset, args, fine_tune=True)
+train_model(model, train_dataset, test_dataset, args, fine_tune=True, num_workers=args.num_workers)

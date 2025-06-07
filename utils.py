@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 
 
-def train_model(model, train_dataset, test_dataset, args, fine_tune=False):
+def train_model(model, train_dataset, test_dataset, args, fine_tune=False, num_workers=24):
     # Create logs directory if it doesn't exist
     log_dir = os.path.join('logs', 'experiment_' + datetime.now().strftime('%Y%m%d_%H%M%S'))
     os.makedirs(log_dir, exist_ok=True)
@@ -19,8 +19,8 @@ def train_model(model, train_dataset, test_dataset, args, fine_tune=False):
     model.to(device)
     
     if fine_tune:
-        train_loader = DataLoader(train_dataset, batch_size=args.fine_tune_batch_size, shuffle=True)
-        test_loader = DataLoader(test_dataset, batch_size=args.fine_tune_batch_size, shuffle=False)
+        train_loader = DataLoader(train_dataset, batch_size=args.fine_tune_batch_size, shuffle=True, num_workers=num_workers)
+        test_loader = DataLoader(test_dataset, batch_size=args.fine_tune_batch_size, shuffle=False, num_workers=num_workers)
         
         for param in model.model.parameters():
             param.requires_grad = False
@@ -36,8 +36,8 @@ def train_model(model, train_dataset, test_dataset, args, fine_tune=False):
 
         model.train()
     else:
-        train_loader = DataLoader(train_dataset, batch_size=args.train_batch_size, shuffle=True)
-        test_loader = DataLoader(test_dataset, batch_size=args.train_batch_size, shuffle=False)
+        train_loader = DataLoader(train_dataset, batch_size=args.train_batch_size, shuffle=True, num_workers=num_workers)
+        test_loader = DataLoader(test_dataset, batch_size=args.train_batch_size, shuffle=False, num_workers=num_workers)
         
         for param in model.model.parameters():
             param.requires_grad = True
