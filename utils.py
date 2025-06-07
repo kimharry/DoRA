@@ -7,9 +7,9 @@ import os
 from datetime import datetime
 
 
-def train_model(model, train_dataset, test_dataset, args, fine_tune=False, num_workers=24):
+def train_model(model, train_dataset, test_dataset, args, fine_tune=False):
     # Create logs directory if it doesn't exist
-    log_dir = os.path.join('logs', 'train' if not fine_tune else 'fine_tune', 'experiment_' + datetime.now().strftime('%Y%m%d_%H%M%S'))
+    log_dir = os.path.join('logs', 'main' if not fine_tune else 'fine_tune', 'experiment_' + datetime.now().strftime('%Y%m%d_%H%M%S'))
     os.makedirs(log_dir, exist_ok=True)
     writer = SummaryWriter(log_dir=log_dir)
     
@@ -19,8 +19,8 @@ def train_model(model, train_dataset, test_dataset, args, fine_tune=False, num_w
     model.to(device)
     
     if fine_tune:
-        train_loader = DataLoader(train_dataset, batch_size=args.fine_tune_batch_size, shuffle=True, num_workers=num_workers)
-        test_loader = DataLoader(test_dataset, batch_size=args.fine_tune_batch_size, shuffle=False, num_workers=num_workers)
+        train_loader = DataLoader(train_dataset, batch_size=args.fine_tune_batch_size, shuffle=True, num_workers=args.num_workers)
+        test_loader = DataLoader(test_dataset, batch_size=args.fine_tune_batch_size, shuffle=False, num_workers=args.num_workers)
         
         for param in model.model.parameters():
             param.requires_grad = False
@@ -29,15 +29,14 @@ def train_model(model, train_dataset, test_dataset, args, fine_tune=False, num_w
             param.requires_grad = True
         
         optimizer = torch.optim.Adam(model.parameters(), lr=args.fine_tune_lr)
-        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.fine_tune_epoch)
         criterion = nn.CrossEntropyLoss()
 
         num_epochs = args.fine_tune_epoch
 
         model.train()
     else:
-        train_loader = DataLoader(train_dataset, batch_size=args.train_batch_size, shuffle=True, num_workers=num_workers)
-        test_loader = DataLoader(test_dataset, batch_size=args.train_batch_size, shuffle=False, num_workers=num_workers)
+        train_loader = DataLoader(train_dataset, batch_size=args.main_batch_size, shuffle=True, num_workers=args.num_workers)
+        test_loader = DataLoader(test_dataset, batch_size=args.main_batch_size, shuffle=False, num_workers=args.num_workers)
         
         for param in model.model.parameters():
             param.requires_grad = True
@@ -45,11 +44,10 @@ def train_model(model, train_dataset, test_dataset, args, fine_tune=False, num_w
         for param in model.channel_wise_multiplier.parameters():
             param.requires_grad = False
 
-        optimizer = torch.optim.Adam(model.parameters(), lr=args.train_lr)
-        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.train_epoch)
+        optimizer = torch.optim.Adam(model.parameters(), lr=args.main_lr)
         criterion = nn.CrossEntropyLoss()
 
-        num_epochs = args.train_epoch
+        num_epochs = args.main_epoch
 
         model.train()
     
