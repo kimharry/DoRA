@@ -30,6 +30,8 @@ loss_fn = nn.CrossEntropyLoss()
 
 model.train()
 for epoch in range(10):
+    correct = 0
+    total = 0
     for images, labels in train_loader:
         images = images.to(device)
         labels = labels.to(device)
@@ -40,7 +42,11 @@ for epoch in range(10):
         loss.backward()
         optimizer.step()
         lr_scheduler.step()
-
+        
+        _, predicted = torch.max(outputs.data, 1)
+        total += labels.size(0)
+        correct += (predicted == labels).sum().item()
+    
     print(f"Acc: {100 * correct / total:.2f}%, Epoch {epoch+1}, Loss: {loss.item()}")
 
 model.eval()
