@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
-import torchvision.models as models
+import torchvision.models.resnet as resnet
+from torchvision.models.resnet import ResNet18_Weights
 
 
 class ResNet18(nn.Module):
@@ -13,7 +14,7 @@ class ResNet18(nn.Module):
     """
     def __init__(self, num_classes=1000, pretrained=True):
         super(ResNet18, self).__init__()
-        self.model = models.resnet18(pretrained=pretrained)
+        self.model = resnet.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
         
         if num_classes != 1000:
             in_features = self.model.fc.in_features

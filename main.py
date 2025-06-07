@@ -5,8 +5,7 @@ import torchvision.transforms as transforms
 from model.mod_resnet18 import ResNet18
 from torch.utils.data import DataLoader
 
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-device = 'mps'
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # pretrain on cifar10
 model = ResNet18(num_classes=10, pretrained=False)
