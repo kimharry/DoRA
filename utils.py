@@ -9,7 +9,7 @@ from datetime import datetime
 
 def train_model(model, train_dataset, test_dataset, args, fine_tune=False, num_workers=24):
     # Create logs directory if it doesn't exist
-    log_dir = os.path.join('logs', 'experiment_' + datetime.now().strftime('%Y%m%d_%H%M%S'))
+    log_dir = os.path.join('logs', 'train' if not fine_tune else 'fine_tune', 'experiment_' + datetime.now().strftime('%Y%m%d_%H%M%S'))
     os.makedirs(log_dir, exist_ok=True)
     writer = SummaryWriter(log_dir=log_dir)
     
@@ -77,16 +77,16 @@ def train_model(model, train_dataset, test_dataset, args, fine_tune=False, num_w
             running_loss += loss.item()
             
             # Log batch loss
-            writer.add_scalar('Loss/train_batch', loss.item(), epoch * len(train_loader) + batch_idx)
+            writer.add_scalar('train/loss_batch', loss.item(), epoch * len(train_loader) + batch_idx)
         
         # Calculate training metrics
         train_loss = running_loss / len(train_loader)
         train_acc = 100 * correct / total
         
         # Log training metrics
-        writer.add_scalar('Loss/train', train_loss, epoch)
-        writer.add_scalar('Accuracy/train', train_acc, epoch)
-        writer.add_scalar('Learning Rate', optimizer.param_groups[0]['lr'], epoch)
+        writer.add_scalar('train/loss', train_loss, epoch)
+        writer.add_scalar('train/accuracy', train_acc, epoch)
+        writer.add_scalar('train/lr', optimizer.param_groups[0]['lr'], epoch)
         
         # Validation phase
         model.eval()
@@ -112,8 +112,8 @@ def train_model(model, train_dataset, test_dataset, args, fine_tune=False, num_w
         val_acc = 100 * correct / total
 
         # Log validation metrics
-        writer.add_scalar('Loss/val', val_loss, epoch)
-        writer.add_scalar('Accuracy/val', val_acc, epoch)
+        writer.add_scalar('val/loss', val_loss, epoch)
+        writer.add_scalar('val/accuracy', val_acc, epoch)
         
         print(f'Epoch {epoch+1}/{num_epochs} - Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%, Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%')
         
