@@ -53,6 +53,7 @@ def train_model(model, train_dataset, test_dataset, args, fine_tune=False, num_w
 
         model.train()
     
+    best_val_loss = float('inf')
     for epoch in range(num_epochs):
         model.train()
         running_loss = 0.0
@@ -109,7 +110,7 @@ def train_model(model, train_dataset, test_dataset, args, fine_tune=False, num_w
         # Calculate validation metrics
         val_loss /= len(test_loader)
         val_acc = 100 * correct / total
-        
+
         # Log validation metrics
         writer.add_scalar('Loss/val', val_loss, epoch)
         writer.add_scalar('Accuracy/val', val_acc, epoch)
@@ -124,6 +125,10 @@ def train_model(model, train_dataset, test_dataset, args, fine_tune=False, num_w
             writer.add_histogram(f'weights/{name}', param, epoch)
             if param.grad is not None:
                 writer.add_histogram(f'grads/{name}', param.grad, epoch)
+
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            torch.save(model.state_dict(), os.path.join(log_dir, 'best_model_'+str(fine_tune)+'.pth'))
     
     # Close the SummaryWriter
     writer.close()
