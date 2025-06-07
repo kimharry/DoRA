@@ -41,7 +41,7 @@ for epoch in range(10):
         optimizer.step()
         lr_scheduler.step()
 
-    print(f"Epoch {epoch+1}, Loss: {loss.item()}")
+    print(f"Acc: {100 * correct / total:.2f}%, Epoch {epoch+1}, Loss: {loss.item()}")
 
 model.eval()
 with torch.no_grad():
