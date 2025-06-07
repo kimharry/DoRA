@@ -6,6 +6,7 @@ from model.mod_resnet18 import ResNet18
 from torch.utils.data import DataLoader
 
 import argparse
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--fine_tune_epoch', '-fe', type=int, default=10)
@@ -28,8 +29,8 @@ train_size = int(0.8 * len(dataset))
 test_size = len(dataset) - train_size
 train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
 
-train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=10)
-test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False, num_workers=10)
+train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.fine_tune_epoch)
@@ -39,7 +40,7 @@ model.train()
 for epoch in range(args.fine_tune_epoch):
     correct = 0
     total = 0
-    for images, labels in train_loader:
+    for images, labels in tqdm(train_loader):
         images = images.to(device)
         labels = labels.to(device)
         
@@ -60,7 +61,7 @@ model.eval()
 with torch.no_grad():
     correct = 0
     total = 0
-    for images, labels in test_loader:
+    for images, labels in tqdm(test_loader):
         images = images.to(device)
         labels = labels.to(device)
         
