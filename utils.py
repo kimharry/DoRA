@@ -25,7 +25,7 @@ def train_model(model, train_dataset, test_dataset, args, fine_tune=False):
         for param in model.model.parameters():
             param.requires_grad = False
         
-        for param in model.channel_wise_multiplier.parameters():
+        for param in model.augment.parameters():
             param.requires_grad = True
         
         optimizer = torch.optim.Adam(model.parameters(), lr=args.fine_tune_lr)
@@ -41,7 +41,7 @@ def train_model(model, train_dataset, test_dataset, args, fine_tune=False):
         for param in model.model.parameters():
             param.requires_grad = True
 
-        for param in model.channel_wise_multiplier.parameters():
+        for param in model.augment.parameters():
             param.requires_grad = False
 
         optimizer = torch.optim.Adam(model.parameters(), lr=args.main_lr)
