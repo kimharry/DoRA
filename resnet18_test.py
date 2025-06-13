@@ -16,21 +16,16 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', '-d', type=str, default="CIFAR100")
 parser.add_argument('--epoch', '-e', type=int, default=150)
-parser.add_argument('--aug_epoch', '-ae', type=int, default=75)
 parser.add_argument('--batch_size', '-b', type=int, default=64)
-parser.add_argument('--lr', '-lr', type=float, default=0.0001)
-parser.add_argument('--lambda_', '-l', type=float, default=1)
+parser.add_argument('--lr', '-lr', type=float, default=0.001)
 args = parser.parse_args()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-models = {
-    "resnet": None,
-    "aug_pred": AugPredModule().to(device),
-    }
+model = None
 
 if args.dataset == "CIFAR100":
-    models["resnet"] = ResNet18(num_classes=100).to(device)
+    model = ResNet18(num_classes=100).to(device)
     transform = transforms.Compose([
         transforms.RandomHorizontalFlip(),
         transforms.RandomRotation(10),
@@ -38,7 +33,7 @@ if args.dataset == "CIFAR100":
     ])
     dataset = datasets.CIFAR100(root="data", train=True, download=True, transform=transform)
 elif args.dataset == "CIFAR10":
-    models["resnet"] = ResNet18(num_classes=10).to(device)
+    model = ResNet18(num_classes=10).to(device)
     transform = transforms.Compose([
         transforms.RandomHorizontalFlip(),
         transforms.RandomRotation(10),
@@ -46,7 +41,7 @@ elif args.dataset == "CIFAR10":
     ])
     dataset = datasets.CIFAR10(root="data", train=True, download=True, transform=transform)
 elif args.dataset == "MiniImageNet":
-    models["resnet"] = ResNet18(num_classes=100).to(device)
+    model = ResNet18(num_classes=100).to(device)
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.RandomHorizontalFlip(),
@@ -62,7 +57,7 @@ train_size = int(0.8 * len(dataset))
 test_size = len(dataset) - train_size
 train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
 
-log_dir = os.path.join('logs', args.dataset, str(args.aug_epoch), datetime.now().strftime('%Y%m%d_%H%M%S'))
+log_dir = os.path.join('logs', args.dataset, datetime.now().strftime('%Y%m%d_%H%M%S'))
 os.makedirs(log_dir, exist_ok=True)
 writer = SummaryWriter(log_dir=log_dir)
 
@@ -71,25 +66,16 @@ print(f"TensorBoard logs will be saved to: {os.path.abspath(log_dir)}")
 train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=6)
 test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=6)
 
-optim_resnet = torch.optim.Adam(models["resnet"].parameters(), lr=args.lr)
-lr_scheduler_resnet = torch.optim.lr_scheduler.CosineAnnealingLR(optim_resnet, T_max=args.epoch)
+optim = torch.optim.Adam(model.parameters(), lr=args.lr)
+lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optim, T_max=args.epoch)
 criterion = nn.CrossEntropyLoss()
-
-optim_aug_pred = torch.optim.Adam(models["aug_pred"].parameters(), lr=args.lr)
-lr_scheduler_aug_pred = torch.optim.lr_scheduler.CosineAnnealingLR(optim_aug_pred, T_max=args.aug_epoch)
 
 
 best_val_loss = float('inf')
 
 for epoch in range(args.epoch):
-    models["resnet"].train()
-    if epoch < args.aug_epoch:
-        models["aug_pred"].train()
-    else:
-        models["aug_pred"].eval()
+    model.train()
     running_loss = 0.0
-    running_aug_pred_loss = 0.0
-    running_resnet_loss = 0.0
     correct = 0
     total = 0
 
@@ -97,36 +83,20 @@ for epoch in range(args.epoch):
         images = images.to(device)
         labels = labels.to(device)
 
-        optim_resnet.zero_grad()
-        optim_aug_pred.zero_grad()
+        optim.zero_grad()
+    
+        output = model(images)
         
-        aug_pred = models["aug_pred"](images)
-        images = Augmentation(images, aug_pred)
-
-        output = models["resnet"](images)
-        
-        temp_acc = (output.argmax(dim=1) == labels).sum().item() / labels.size(0)
-
-        temp_resnet_loss = criterion(output, labels)
-        temp_aug_pred_loss = models["aug_pred"].loss_fn(temp_acc)
-        
-        loss = temp_resnet_loss + args.lambda_ * temp_aug_pred_loss
-        
+        loss = criterion(output, labels)
         loss.backward()
-        optim_resnet.step()
-        optim_aug_pred.step()
+        optim.step()
         
         running_loss += loss.item()
-        running_aug_pred_loss += temp_aug_pred_loss
-        running_resnet_loss += temp_resnet_loss.item()
         correct += (output.argmax(dim=1) == labels).sum().item()
         total += labels.size(0)
 
-    models["resnet"].eval()
-    models["aug_pred"].eval()
+    model.eval()
     val_loss = 0.0
-    val_aug_pred_loss = 0.0
-    val_resnet_loss = 0.0
     correct = 0
     total = 0
 
@@ -135,48 +105,23 @@ for epoch in range(args.epoch):
             images = images.to(device)
             labels = labels.to(device)
 
-            aug_pred = models["aug_pred"](images)
-            images = Augmentation(images, aug_pred)
+            output = model(images)
 
-            output = models["resnet"](images)
-
-            temp_resnet_loss = criterion(output, labels)
-            temp_aug_pred_loss = models["aug_pred"].loss_fn(temp_acc)
-
-            val_loss += temp_resnet_loss.item() + args.lambda_ * temp_aug_pred_loss
-            val_aug_pred_loss += temp_aug_pred_loss
-            val_resnet_loss += temp_resnet_loss.item()
+            val_loss += criterion(output, labels).item()
             correct += (output.argmax(dim=1) == labels).sum().item()
             total += labels.size(0)
 
-    lr_scheduler_resnet.step()
-    lr_scheduler_aug_pred.step()
+    lr_scheduler.step()
     
-    writer.add_scalar('train/lr', optim_resnet.param_groups[0]['lr'], epoch)
+    writer.add_scalar('train/lr', optim.param_groups[0]['lr'], epoch)
     writer.add_scalar('train/accuracy', 100 * correct / total, epoch)
     writer.add_scalar('train/loss', running_loss / len(train_loader), epoch)
-    writer.add_scalar('train/aug_pred_loss', running_aug_pred_loss / len(train_loader), epoch)
-    writer.add_scalar('train/resnet_loss', running_resnet_loss / len(train_loader), epoch)
 
     writer.add_scalar('val/accuracy', 100 * correct / total, epoch)
     writer.add_scalar('val/loss', val_loss / len(test_loader), epoch)
-    writer.add_scalar('val/aug_pred_loss', val_aug_pred_loss / len(test_loader), epoch)
-    writer.add_scalar('val/resnet_loss', val_resnet_loss / len(test_loader), epoch)
-
-    # mean of parameters
-    for name, param in models["aug_pred"].named_parameters():
-        writer.add_scalar(f'aug_pred/{name}_mean', param.mean(), epoch)
-        if param.grad is not None:
-            writer.add_scalar(f'aug_pred/{name}_grad_mean', param.grad.mean(), epoch)
 
     print(f"Epoch {epoch+1}/{args.epoch}", end=" - ")
     print(f"Train Loss: {running_loss / len(train_loader)}", end=", ")
     print(f"Train Acc: {100 * correct / total:.2f}%", end=", ")
     print(f"Val Loss: {val_loss / len(test_loader)}", end=", ")
     print(f"Val Acc: {100 * correct / total:.2f}%")
-
-    if val_loss / len(test_loader) < best_val_loss:
-        best_val_loss = val_loss / len(test_loader)
-        torch.save(models["resnet"].state_dict(), os.path.join(log_dir, "resnet.pth"))
-        torch.save(models["aug_pred"].state_dict(), os.path.join(log_dir, "aug_pred.pth"))
-        print(f"Best validation loss updated: {best_val_loss}")
