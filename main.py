@@ -15,10 +15,11 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', '-d', type=str, default="CIFAR100")
-parser.add_argument('--epoch', '-e', type=int, default=150)
-parser.add_argument('--aug_epoch', '-ae', type=int, default=75)
 parser.add_argument('--batch_size', '-b', type=int, default=64)
-parser.add_argument('--lr', '-lr', type=float, default=0.0001)
+parser.add_argument('--resnet_epoch', '-re', type=int, default=10)
+parser.add_argument('--aug_epoch', '-ae', type=int, default=30)
+parser.add_argument('--resnet_lr', '-rlr', type=float, default=0.001)
+parser.add_argument('--aug_lr', '-alr', type=float, default=0.001)
 parser.add_argument('--lambda_', '-l', type=float, default=1)
 args = parser.parse_args()
 
@@ -71,29 +72,29 @@ print(f"TensorBoard logs will be saved to: {os.path.abspath(log_dir)}")
 train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=6)
 test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=6)
 
-optim_resnet = torch.optim.Adam(models["resnet"].parameters(), lr=args.lr)
-lr_scheduler_resnet = torch.optim.lr_scheduler.CosineAnnealingLR(optim_resnet, T_max=args.epoch)
+optim_resnet = torch.optim.Adam(models["resnet"].parameters(), lr=args.resnet_lr)
+lr_scheduler_resnet = torch.optim.lr_scheduler.CosineAnnealingLR(optim_resnet, T_max=args.resnet_epoch)
 criterion = nn.CrossEntropyLoss()
 
-optim_aug_pred = torch.optim.Adam(models["aug_pred"].parameters(), lr=args.lr)
+optim_aug_pred = torch.optim.Adam(models["aug_pred"].parameters(), lr=args.aug_lr)
 lr_scheduler_aug_pred = torch.optim.lr_scheduler.CosineAnnealingLR(optim_aug_pred, T_max=args.aug_epoch)
 
 
 best_val_loss = float('inf')
 
-for epoch in range(args.epoch):
-    models["resnet"].train()
-    if epoch < args.aug_epoch:
-        models["aug_pred"].train()
+for epoch in range(args.aug_epoch):
+    if epoch < args.resnet_epoch:
+        models["resnet"].train()
     else:
-        models["aug_pred"].eval()
+        models["resnet"].eval()
+    models["aug_pred"].train()
     running_loss = 0.0
     running_aug_pred_loss = 0.0
     running_resnet_loss = 0.0
     correct = 0
     total = 0
 
-    for batch_idx, (images, labels) in enumerate(tqdm(train_loader, desc=f'Epoch {epoch+1}/{args.epoch} [Train]')):
+    for batch_idx, (images, labels) in enumerate(tqdm(train_loader, desc=f'Epoch {epoch+1}/{args.aug_epoch} [Train]')):
         images = images.to(device)
         labels = labels.to(device)
 
@@ -131,7 +132,7 @@ for epoch in range(args.epoch):
     total = 0
 
     with torch.no_grad():
-        for batch_idx, (images, labels) in enumerate(tqdm(test_loader, desc=f'Epoch {epoch+1}/{args.epoch} [Test]')):
+        for batch_idx, (images, labels) in enumerate(tqdm(test_loader, desc=f'Epoch {epoch+1}/{args.aug_epoch} [Test]')):
             images = images.to(device)
             labels = labels.to(device)
 
@@ -169,7 +170,7 @@ for epoch in range(args.epoch):
         if param.grad is not None:
             writer.add_scalar(f'aug_pred/{name}_grad_mean', param.grad.mean(), epoch)
 
-    print(f"Epoch {epoch+1}/{args.epoch}", end=" - ")
+    print(f"Epoch {epoch+1}/{args.aug_epoch}", end=" - ")
     print(f"Train Loss: {running_loss / len(train_loader)}", end=", ")
     print(f"Train Acc: {100 * correct / total:.2f}%", end=", ")
     print(f"Val Loss: {val_loss / len(test_loader)}", end=", ")
