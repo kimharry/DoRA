@@ -15,7 +15,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', '-d', type=str, default="CIFAR100")
-parser.add_argument('--epoch', '-e', type=int, default=150)
+parser.add_argument('--epoch', '-e', type=int, default=50)
 parser.add_argument('--batch_size', '-b', type=int, default=64)
 parser.add_argument('--lr', '-lr', type=float, default=0.001)
 args = parser.parse_args()
@@ -125,3 +125,8 @@ for epoch in range(args.epoch):
     print(f"Train Acc: {100 * correct / total:.2f}%", end=", ")
     print(f"Val Loss: {val_loss / len(test_loader)}", end=", ")
     print(f"Val Acc: {100 * correct / total:.2f}%")
+
+    if val_loss / len(test_loader) < best_val_loss:
+        best_val_loss = val_loss / len(test_loader)
+        torch.save(model.state_dict(), "model/resnet18.pth")
+        print(f"Best validation loss updated: {best_val_loss}")
