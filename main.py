@@ -19,8 +19,8 @@ parser.add_argument('--batch_size', '-b', type=int, default=64)
 parser.add_argument('--resnet_epoch', '-re', type=int, default=10)
 parser.add_argument('--aug_epoch', '-ae', type=int, default=50)
 parser.add_argument('--resnet_lr', '-rlr', type=float, default=0.001)
-parser.add_argument('--aug_lr', '-alr', type=float, default=0.001)
-parser.add_argument('--lambda_', '-l', type=float, default=0.1)
+parser.add_argument('--aug_lr', '-alr', type=float, default=0.0001)
+parser.add_argument('--lambda_', '-l', type=float, default=1)
 args = parser.parse_args()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -69,8 +69,8 @@ writer = SummaryWriter(log_dir=log_dir)
 
 print(f"TensorBoard logs will be saved to: {os.path.abspath(log_dir)}")
 
-train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=6)
-test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=6)
+train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=100)
+test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=100)
 
 # Phase 1: Train ResNet
 optim_resnet = torch.optim.Adam(models["resnet"].parameters(), lr=args.resnet_lr)
@@ -157,8 +157,8 @@ for epoch in range(args.aug_epoch):
     running_loss = 0.0
     running_aug_pred_loss = 0.0
     running_resnet_loss = 0.0
-    correct = 0
-    total = 0
+    running_correct = 0
+    running_total = 0
 
     for batch_idx, (images, labels) in enumerate(tqdm(train_loader, desc=f'Epoch {epoch+1}/{args.aug_epoch} [Train]')):
         images = images.to(device)
@@ -186,16 +186,16 @@ for epoch in range(args.aug_epoch):
         running_loss += loss.item()
         running_aug_pred_loss += temp_aug_pred_loss
         running_resnet_loss += temp_resnet_loss.item()
-        correct += (output.argmax(dim=1) == labels).sum().item()
-        total += labels.size(0)
+        running_correct += (output.argmax(dim=1) == labels).sum().item()
+        running_total += labels.size(0)
 
     models["resnet"].eval()
     models["aug_pred"].eval()
     val_loss = 0.0
     val_aug_pred_loss = 0.0
     val_resnet_loss = 0.0
-    correct = 0
-    total = 0
+    val_correct = 0
+    val_total = 0
 
     with torch.no_grad():
         for batch_idx, (images, labels) in enumerate(tqdm(test_loader, desc=f'Epoch {epoch+1}/{args.aug_epoch} [Test]')):
@@ -213,19 +213,19 @@ for epoch in range(args.aug_epoch):
             val_loss += temp_resnet_loss.item() + args.lambda_ * temp_aug_pred_loss
             val_aug_pred_loss += temp_aug_pred_loss
             val_resnet_loss += temp_resnet_loss.item()
-            correct += (output.argmax(dim=1) == labels).sum().item()
-            total += labels.size(0)
+            val_correct += (output.argmax(dim=1) == labels).sum().item()
+            val_total += labels.size(0)
 
     lr_scheduler_aug_pred.step()
     lr_scheduler_resnet.step()
     
     writer.add_scalar('aug_pred/train/lr', optim_aug_pred.param_groups[0]['lr'], epoch)
-    writer.add_scalar('aug_pred/train/accuracy', 100 * correct / total, epoch)
+    writer.add_scalar('aug_pred/train/accuracy', 100 * running_correct / running_total, epoch)
     writer.add_scalar('aug_pred/train/loss', running_loss / len(train_loader), epoch)
     writer.add_scalar('aug_pred/train/aug_pred_loss', running_aug_pred_loss / len(train_loader), epoch)
     writer.add_scalar('aug_pred/train/resnet_loss', running_resnet_loss / len(train_loader), epoch)
 
-    writer.add_scalar('aug_pred/val/accuracy', 100 * correct / total, epoch)
+    writer.add_scalar('aug_pred/val/accuracy', 100 * val_correct / val_total, epoch)
     writer.add_scalar('aug_pred/val/loss', val_loss / len(test_loader), epoch)
     writer.add_scalar('aug_pred/val/aug_pred_loss', val_aug_pred_loss / len(test_loader), epoch)
     writer.add_scalar('aug_pred/val/resnet_loss', val_resnet_loss / len(test_loader), epoch)
@@ -238,9 +238,9 @@ for epoch in range(args.aug_epoch):
 
     print(f"Epoch {epoch+1}/{args.aug_epoch}", end=" - ")
     print(f"Train Loss: {running_loss / len(train_loader)}", end=", ")
-    print(f"Train Acc: {100 * correct / total:.2f}%", end=", ")
+    print(f"Train Acc: {100 * running_correct / running_total:.2f}%", end=", ")
     print(f"Val Loss: {val_loss / len(test_loader)}", end=", ")
-    print(f"Val Acc: {100 * correct / total:.2f}%")
+    print(f"Val Acc: {100 * val_correct / val_total:.2f}%")
 
     if val_loss / len(test_loader) < best_val_loss:
         best_val_loss = val_loss / len(test_loader)
