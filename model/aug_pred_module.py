@@ -27,6 +27,8 @@ class AugPredModule(nn.Module):
         
         self.classifier = nn.Sequential(
             nn.Dropout(0.5),
+            nn.Linear(256*3*3*81, 256*3*3), nn.ReLU(),
+            nn.Dropout(0.5),
             nn.Linear(256*3*3, 1024), nn.ReLU(),
             nn.Dropout(0.5),
             nn.Linear(1024,512), nn.ReLU(),
@@ -35,7 +37,7 @@ class AugPredModule(nn.Module):
 
     def forward(self, x):
         out = self.features(x)
-        out = out.view(-1, 256*3*3)
+        out = out.view(-1, 256*3*3*81)
         out = self.classifier(out)
         out = out.view(-1, 2, 3) # weight, bias
         return out

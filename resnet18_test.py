@@ -14,8 +14,8 @@ from datetime import datetime
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataset', '-d', type=str, default="CIFAR100")
-parser.add_argument('--epoch', '-e', type=int, default=50)
+parser.add_argument('--dataset', '-d', type=str, default="MiniImageNet")
+parser.add_argument('--epoch', '-e', type=int, default=30)
 parser.add_argument('--batch_size', '-b', type=int, default=64)
 parser.add_argument('--lr', '-lr', type=float, default=0.001)
 args = parser.parse_args()
@@ -76,8 +76,8 @@ best_val_loss = float('inf')
 for epoch in range(args.epoch):
     model.train()
     running_loss = 0.0
-    correct = 0
-    total = 0
+    running_correct = 0
+    running_total = 0
 
     for batch_idx, (images, labels) in enumerate(tqdm(train_loader, desc=f'Epoch {epoch+1}/{args.epoch} [Train]')):
         images = images.to(device)
@@ -92,13 +92,13 @@ for epoch in range(args.epoch):
         optim.step()
         
         running_loss += loss.item()
-        correct += (output.argmax(dim=1) == labels).sum().item()
-        total += labels.size(0)
+        running_correct += (output.argmax(dim=1) == labels).sum().item()
+        running_total += labels.size(0)
 
     model.eval()
     val_loss = 0.0
-    correct = 0
-    total = 0
+    val_correct = 0
+    val_total = 0
 
     with torch.no_grad():
         for batch_idx, (images, labels) in enumerate(tqdm(test_loader, desc=f'Epoch {epoch+1}/{args.epoch} [Test]')):
@@ -108,23 +108,23 @@ for epoch in range(args.epoch):
             output = model(images)
 
             val_loss += criterion(output, labels).item()
-            correct += (output.argmax(dim=1) == labels).sum().item()
-            total += labels.size(0)
+            val_correct += (output.argmax(dim=1) == labels).sum().item()
+            val_total += labels.size(0)
 
     lr_scheduler.step()
     
     writer.add_scalar('train/lr', optim.param_groups[0]['lr'], epoch)
-    writer.add_scalar('train/accuracy', 100 * correct / total, epoch)
+    writer.add_scalar('train/accuracy', 100 * running_correct / running_total, epoch)
     writer.add_scalar('train/loss', running_loss / len(train_loader), epoch)
 
-    writer.add_scalar('val/accuracy', 100 * correct / total, epoch)
+    writer.add_scalar('val/accuracy', 100 * val_correct / val_total, epoch)
     writer.add_scalar('val/loss', val_loss / len(test_loader), epoch)
 
     print(f"Epoch {epoch+1}/{args.epoch}", end=" - ")
     print(f"Train Loss: {running_loss / len(train_loader)}", end=", ")
-    print(f"Train Acc: {100 * correct / total:.2f}%", end=", ")
+    print(f"Train Acc: {100 * running_correct / running_total:.2f}%", end=", ")
     print(f"Val Loss: {val_loss / len(test_loader)}", end=", ")
-    print(f"Val Acc: {100 * correct / total:.2f}%")
+    print(f"Val Acc: {100 * val_correct / val_total:.2f}%")
 
     if val_loss / len(test_loader) < best_val_loss:
         best_val_loss = val_loss / len(test_loader)
