@@ -25,13 +25,13 @@ class PureResNet18(nn.Module):
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# ────── 하이퍼파라미터 설정 ──────
+
 epochs = 30
 batch_size = 64
 lr = 0.001
 num_classes = 100
 
-# ────── 데이터셋 ──────
+
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
@@ -46,14 +46,14 @@ train_dataset, val_dataset = torch.utils.data.random_split(dataset, [train_size,
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=24)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=24)
 
-# ────── 모델 ──────
+
 model = PureResNet18(num_classes=num_classes).to(device)
 
-# ────── 학습 설정 ──────
+
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=lr)
 
-# ────── 학습 루프 ──────
+
 for epoch in range(epochs):
     model.train()
     total, correct, running_loss = 0, 0, 0.0
@@ -96,6 +96,6 @@ for epoch in range(epochs):
     val_acc = 100. * val_correct / val_total
 
     print(f"Epoch {epoch+1}/{epochs} Val Loss: {avg_val_loss:.4f}, Val Acc: {val_acc:.2f}%")
-# ────── 저장 ──────
+
+
 torch.save(model.model.state_dict(), "resnet18_pretrained.pth")
-print("✅ ResNet 저장 완료: resnet18_pretrained.pth")
